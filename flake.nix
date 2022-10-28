@@ -37,18 +37,26 @@
           ];
         };
 
+        buildSystem = final.stdenv.buildPlatform.system;
+
         crossTargets = {
           "x86_64-unknown-linux-gnu" = {
             static = false;
+            pkgs = import nixpkgs {
+              system = buildSystem;
+              crossSystem.config = "x86_64-unknown-linux-gnu";
+            };
           };
           "aarch64-unknown-linux-gnu" = {
             static = false;
+            pkgs = import nixpkgs {
+              system = buildSystem;
+              crossSystem.config = "aarch64-unknown-linux-gnu";
+            };
           };
         };
 
         genCross = lib.genAttrs (builtins.attrNames crossTargets);
-
-        buildSystem = final.stdenv.buildPlatform.system;
       in {
         _toolchainCross = genCross (
           targetConfig:
@@ -70,6 +78,9 @@
           .buildPackage {
             inherit src;
             CARGO_BUILD_TARGET = targetConfig;
+            buildInputs = with crossTargets.${targetConfig}.pkgs; [
+              stdenv.cc
+            ];
           });
       };
 
