@@ -59,6 +59,19 @@
           inherit src;
           CARGO_BUILD_TARGET = targetConfig;
         };
+
+        cross-rustplatform =
+          (final.makeRustPlatform {
+            cargo = final._toolchain;
+            rustc = final._toolchain;
+          })
+          .buildRustPackage {
+            inherit src;
+            pname = "cross-rustplatform";
+            version = "0.pre";
+            cargoLock.lockFile = ./Cargo.lock;
+            target = targetConfig;
+          };
       };
 
       perSystem = {
