@@ -38,50 +38,27 @@
         };
 
         buildSystem = final.stdenv.buildPlatform.system;
+        targetConfig = final.stdenv.targetPlatform.config;
+        targetConfigUpper = builtins.replaceStrings ["-"] ["_"] (lib.toUpper targetConfig);
+      in {
+        _toolchain = with fenix.packages.${buildSystem};
+          combine [
+            (complete.withComponents [
+              "rustc"
+              "cargo"
+            ])
+            targets.${targetConfig}.latest.rust-std
+          ];
 
-        crossTargets = {
-          "x86_64-unknown-linux-gnu" = {
-            static = false;
-            pkgs = import nixpkgs {
-              system = buildSystem;
-              crossSystem.config = "x86_64-unknown-linux-gnu";
-            };
-          };
-          "aarch64-unknown-linux-gnu" = {
-            static = false;
-            pkgs = import nixpkgs {
-              system = buildSystem;
-              crossSystem.config = "aarch64-unknown-linux-gnu";
-            };
-          };
+        naersk = final.callPackage naersk {
+          cargo = final._toolchain;
+          rustc = final._toolchain;
         };
 
-        genCross = lib.genAttrs (builtins.attrNames crossTargets);
-      in {
-        _toolchainCross = genCross (
-          targetConfig:
-            with fenix.packages.${buildSystem};
-              combine [
-                (complete.withComponents [
-                  "rustc"
-                  "cargo"
-                ])
-                targets.${targetConfig}.latest.rust-std
-              ]
-        );
-
-        cross-naersk = genCross (targetConfig:
-          (naersk.lib.${buildSystem}.override {
-            cargo = final._toolchainCross.${targetConfig};
-            rustc = final._toolchainCross.${targetConfig};
-          })
-          .buildPackage {
-            inherit src;
-            CARGO_BUILD_TARGET = targetConfig;
-            buildInputs = with crossTargets.${targetConfig}.pkgs; [
-              stdenv.cc
-            ];
-          });
+        cross-naersk = final.naersk.buildPackage {
+          inherit src;
+          CARGO_BUILD_TARGET = targetConfig;
+        };
       };
 
       perSystem = {
